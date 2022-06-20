@@ -1,75 +1,39 @@
-const needle = require("needle");
+const axios = require("axios");
 
-// Te mandei o token no teu PV
-const token = process.env.BEARER_TOKEN;
+const BEARER_TOKEN = `Bearer ${process.env.BEARER_TOKEN}`
 
-const postID = "1538277058169786368";
+const httpClient = axios.create({
+    baseURL: `https://api.twitter.com`
+})
 
-const urlGetPostLikes = `https://api.twitter.com/2/tweets/${postID}/liking_users`;
-const urlGetPostRetweets = `https://api.twitter.com/2/tweets/${postID}/retweeted_by`;
-
-
-async function getRequestLikes() {
-    const params = {
-        "tweet.fields": "lang,author_id",
-        "user.fields": "created_at",
-    };
-
-    const res = await needle("get", urlGetPostLikes, params, {
-        headers: {
-            "User-Agent": "v2LikedTweetsJS",
-            authorization: `Bearer ${token}`
-        },
-    });
-
-    if (res.body) {
-        return res.body;
-    } else {
-        throw new Error("Unsuccessful request");
+httpClient.defaults.headers = {
+    ...httpClient.defaults.headers,
+    common: {
+        Authorization: BEARER_TOKEN
     }
 }
 
-(async () => {
-    try {
-        const response = await getRequestLikes();
-        console.dir(response, {
-            depth: null,
-        });
-    } catch (e) {
-        console.log(e);
-    }
-})();
+const TwitterRepository = {
+
+    async getRequestLikesFromTweet(postID, paginationToken) {
+        const config = buildParams(paginationToken)
+        const response = await httpClient.get(`/2/tweets/${postID}/liking_users`, config)
+        return response.data
+    },
 
 
-
-async function getRequestRetweets() {
-    const params = {
-        "tweet.fields": "lang,author_id",
-        "user.fields": "created_at",
-    };
-
-    const res = await needle("get", urlGetPostRetweets, params, {
-        headers: {
-            "User-Agent": "v2LikedTweetsJS",
-            authorization: `Bearer ${token}`
-        },
-    });
-
-    if (res.body) {
-        return res.body;
-    } else {
-        throw new Error("Unsuccessful request");
+    async getRequestRetweets(postID, paginationToken) {
+        const config = buildParams(paginationToken)
+        const response = await httpClient.get(`/2/tweets/${postID}/retweeted_by`, config)
+        return response.data
     }
 }
 
-(async () => {
-    try {
-        // Make request
-        const response = await getRequestRetweets();
-        console.dir(response, {
-            depth: null,
-        });
-    } catch (e) {
-        console.log(e);
-    }
-})();
+function buildParams(paginationToken) {
+    let config = {params: {}}
+    if (paginationToken) config.params = {...config.params, pagination_token: paginationToken}
+    return config
+}
+
+
+module.exports = TwitterRepository
